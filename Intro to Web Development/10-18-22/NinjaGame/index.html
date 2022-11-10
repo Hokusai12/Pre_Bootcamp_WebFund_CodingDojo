@@ -1,0 +1,735 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>NinjaGame</title>
+        <style type="text/css">
+            * {
+                margin: 0px;
+                padding: 0px;
+            }
+            #world {
+                position: absolute;
+            }
+            .row {
+                line-height: 0px;
+            }
+            .wall {
+                background-color: blue;
+                height:40px;
+                width:40px;
+                display: inline-block;
+            }            
+            .blank {
+                background-color: black;
+                height:40px;
+                width:40px;
+                display: inline-block;
+            }
+            .sushi {
+                background-image: url("img/sushi.png");
+                background-color: black;
+                height:40px;
+                width:40px;
+                display: inline-block;
+                background-size: contain;
+            }
+            .onigiri {
+                background-image: url("img/onigiri.png");
+                background-color: black;
+                height:40px;
+                width:40px;
+                display: inline-block;
+                background-size: contain;
+            }
+            #ninjaman {
+                background-image: url("img/ninja.gif");
+                background-color: black;
+                height:40px;
+                width:40px;
+                display: inline-block;
+                background-size: contain;
+                position: absolute;
+                left: 40px;
+                top: 40px;
+            }
+            #score {
+                position: absolute;
+                left: 720px;
+                top: 40px;
+                height:40px;
+                width:160px;
+                background-color: red;
+                font-size: 25px;
+                opacity: 1;
+            }
+            #pinky {
+                background-image: url("img/pinky.gif");
+                background-color: black;
+                height: 40px;
+                width: 40px;
+                display: inline-block;
+                background-size: contain;
+                position: absolute;
+                left: 40px;
+                top: 40px;
+            }
+            #bluey {
+                background-image: url("img/bluey.gif");
+                background-color: black;
+                height: 40px;
+                width: 40px;
+                display: inline-block;
+                background-size: contain;
+                position: absolute;
+                left: 40px;
+                top: 40px;
+            }
+            #pumpky {
+                background-image: url("img/pumpky.gif");
+                background-color: black;
+                height: 40px;
+                width: 40px;
+                display: inline-block;
+                background-size: contain;
+                position: absolute;
+                left: 40px;
+                top: 40px;
+            }
+            #red {
+                background-image: url("img/red.gif");
+                background-color: black;
+                height: 40px;
+                width: 40px;
+                display: inline-block;
+                background-size: contain;
+                position: absolute;
+                left: 40px;
+                top: 40px;
+            }
+            #gameover {
+                background-color: black;
+                height: 40px;
+                width: 40px;
+                position: absolute;
+            }
+            #gameover-text {
+                position: absolute;
+                height: 100px;
+                width: 200px;
+                text-align: center;
+                color: white;
+            }
+            #start-over-button {
+                position: absolute;
+                height: 40px;
+                width: 80px;
+            }
+            #lives {
+                position: absolute;
+                height: 40px;
+                width: 160px;
+                font-size: 25px;
+                opacity: 1;
+                background-color: white;
+            }
+        </style>
+    </head>
+    <body>
+        <div id="world"></div>        
+        <div id="score">Score: </div>
+        <div id="lives">Lives Left: </div>
+        <div id="ninjaman"></div>
+    </body>
+    <script type="text/javascript">
+        var width = 20, height = 20; //World Dimensions
+        var score = 0;
+        var ghostCount = 0; //Used to help keep track of spawning the ghosts
+        var numFood = 0;
+        var areGhostsScared = false;
+        var numSteps = 0;
+        var isGameOver = false;
+
+        var world = []; //Array that holds the world tiles' data
+        var tileDistances = [];//Holds the distance from the player to the world's tiles
+        var ghostsHidden = [false, false, false, false];
+        var killerGhost = "";
+        var livesLeft = 3;
+
+        var worldDict = {
+            0: 'blank',
+            1: 'wall',
+            2: 'onigiri',
+            3: 'sushi'
+        };
+
+        var ghostNames = ["pinky", "bluey", "pumpky", "red"];
+
+        var ghosts = {
+            pinky: [0,0],
+            bluey: [0,0],
+            pumpky: [0,0],
+            red: [0,0]
+        }
+
+        var ninjaman = {
+            x: 1,
+            y: 1
+        };
+        
+        function arraySort(arr){
+            console.log("Array before: " + arr);
+            for(var i = 0; i < arr.length; i++){
+                if(arr[i] == null){
+                    arr.splice(i, i+1);
+                    continue;
+                }
+                for(var j = arr.length - 1; j > i; j--){
+                    if(arr[j] == null){
+                        arr.splice(j, j+1);
+                        continue;
+                    }
+                    if(arr[i] > arr[j]){
+                        var temp = arr[i];
+                        arr[i] = arr[j];
+                        arr[j] = temp;
+                    }
+                }
+
+            }
+            console.log("Array after: " + arr);
+            return arr;
+        }
+
+        function arrayIncludesArray(rootArr, findArr){
+            for(var i = 0; i < rootArr.length; i++){
+                if(rootArr[i].length == findArr.length){
+                    searchArray:{
+                        for(var j = 0; j < findArr.length; j++){
+                            if(rootArr[i][j] == findArr[j]){
+                                continue;
+                            }
+                            else{
+                                break searchArray;
+                            }
+                        }
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+
+        function scaredGhosts() {
+            for(var i = 0; i < ghostCount; i++){
+                document.getElementById(ghostNames[i]).style.backgroundImage = "url('img/scaredy.png')"; //Set all ghosts to the scaredy img
+            }
+            areGhostsScared = true;
+        }
+
+        function moveScaredGhosts() {
+            updateTileDistances();
+            var allGhostPos = [];
+            for(var i = 0; i < ghostCount; i++){
+                allGhostPos.push(ghosts[ghostNames[i]]);
+            }
+            console.log(allGhostPos);
+
+            for(var i = 0; i < ghostCount; i++){
+                var ghostPos = ghosts[ghostNames[i]];
+                var newGhostPos = ghostPos;
+                if(tileDistances[ghostPos[0] - 1][ghostPos[1]] != 'w' && tileDistances[ghostPos[0] - 1][ghostPos[1]] != "undefined"){
+                    console.log(arrayIncludesArray(allGhostPos, [ghostPos[0] - 1, ghostPos[1]]));
+                    if(tileDistances[newGhostPos[0]][newGhostPos[1]] < tileDistances[ghostPos[0] - 1][ghostPos[1]] && !(arrayIncludesArray(allGhostPos, [ghostPos[0] - 1, ghostPos[1]]))){
+                        newGhostPos = [ghostPos[0] - 1, ghostPos[1]];
+                    }
+                }
+                if(tileDistances[ghostPos[0]][ghostPos[1] + 1] != 'w' && tileDistances[ghostPos[0]][ghostPos[1] + 1] != "undefined"){
+                    console.log(arrayIncludesArray(allGhostPos, [ghostPos[0], ghostPos[1] + 1]));
+                    if(tileDistances[newGhostPos[0]][newGhostPos[1]] < tileDistances[ghostPos[0]][ghostPos[1] + 1] && !(arrayIncludesArray(allGhostPos, [ghostPos[0], ghostPos[1] + 1]))){
+                        newGhostPos = [ghostPos[0], ghostPos[1] + 1];
+                    }
+                }
+                if(tileDistances[ghostPos[0] + 1][ghostPos[1]] != 'w' && tileDistances[ghostPos[0] + 1][ghostPos[1]] != "undefined"){
+                    console.log(arrayIncludesArray(allGhostPos, [ghostPos[0] + 1, ghostPos[1]]));
+                    if(tileDistances[newGhostPos[0]][newGhostPos[1]] < tileDistances[ghostPos[0] + 1][ghostPos[1]] && !(arrayIncludesArray(allGhostPos, [ghostPos[0] + 1, ghostPos[1]]))){
+                        newGhostPos = [ghostPos[0] + 1, ghostPos[1]];
+                    }
+                }
+                if(tileDistances[ghostPos[0]][ghostPos[1] - 1] != 'w' && tileDistances[ghostPos[0]][ghostPos[1] - 1] != "undefined"){
+                    console.log(arrayIncludesArray(allGhostPos, [ghostPos[0], ghostPos[1] - 1]));
+                    if(tileDistances[newGhostPos[0]][newGhostPos[1]] < tileDistances[ghostPos[0]][ghostPos[1] - 1] && !(arrayIncludesArray(allGhostPos, [ghostPos[0], ghostPos[1] - 1]))){
+                        newGhostPos = [ghostPos[0], ghostPos[1] - 1];
+                    }
+                }
+                allGhostPos[i] = newGhostPos;
+                ghosts[ghostNames[i]] = newGhostPos;
+                document.getElementById(ghostNames[i]).style.top = newGhostPos[0] * 40 + "px";
+                document.getElementById(ghostNames[i]).style.left = newGhostPos[1] * 40 + "px";
+            }
+        }
+
+        function initGhost(ghostName){
+            var currentGhost = [0,0];
+            updateTileDistances();
+            document.body.innerHTML +=  "<div id='" + ghostName + "'></div>";
+            do{ //So the ghost doesn't spawn in a wall
+                currentGhost[0] = Math.round(Math.random()*height - 1);
+                currentGhost[1] = Math.round(Math.random()*width - 1);
+            }while(world[currentGhost[0]][currentGhost[1]] == 1 && tileDistances[currentGhost[0]][currentGhost[1]] != "undefined");
+
+            if(world[currentGhost[0]][currentGhost[1]] == 2 || world[currentGhost[0]][currentGhost[1]] == 3){
+                world[currentGhost[0]][currentGhost[1]]= 0;
+                numFood--;
+            }
+            
+            if(!areGhostsScared){
+                switch(ghostCount){
+                    case 0: 
+                        ghosts.pinky = currentGhost;
+                        document.getElementById("pinky").style.top = ghosts.pinky[0] * 40 + "px";
+                        document.getElementById("pinky").style.left = ghosts.pinky[1] * 40 + "px";
+                        break;
+                    case 1:
+                        ghosts.bluey = currentGhost;
+                        document.getElementById("bluey").style.top = ghosts.bluey[0] * 40 + "px";
+                        document.getElementById("bluey").style.left = ghosts.bluey[1] * 40 + "px";
+                        break;
+                    case 2:
+                        ghosts.pumpky = currentGhost;
+                        document.getElementById("pumpky").style.top = ghosts.pumpky[0] * 40 + "px";
+                        document.getElementById("pumpky").style.left = ghosts.pumpky[1] * 40 + "px";
+                        break;
+                    case 3:
+                        ghosts.red = currentGhost;
+                        document.getElementById("red").style.top = ghosts.red[0] * 40 + "px";
+                        document.getElementById("red").style.left = ghosts.red[1] * 40 + "px";
+                        break;
+                }
+            } else {
+                document.getElementById(ghostName).style.backgroundImage = "url('img/scaredy.png')";
+                switch(ghostCount){
+                    case 0: 
+                        ghosts.pinky = currentGhost;
+                        document.getElementById("pinky").style.top = ghosts.pinky[0] * 40 + "px";
+                        document.getElementById("pinky").style.left = ghosts.pinky[1] * 40 + "px";
+                        break;
+                    case 1:
+                        ghosts.bluey = currentGhost;
+                        document.getElementById("bluey").style.top = ghosts.bluey[0] * 40 + "px";
+                        document.getElementById("bluey").style.left = ghosts.bluey[1] * 40 + "px";
+                        break;
+                    case 2:
+                        ghosts.pumpky = currentGhost;
+                        document.getElementById("pumpky").style.top = ghosts.pumpky[0] * 40 + "px";
+                        document.getElementById("pumpky").style.left = ghosts.pumpky[1] * 40 + "px";
+                        break;
+                    case 3:
+                        ghosts.red = currentGhost;
+                        document.getElementById("red").style.top = ghosts.red[0] * 40 + "px";
+                        document.getElementById("red").style.left = ghosts.red[1] * 40 + "px";
+                        break;
+                }
+
+            }
+            ghostCount++;
+        }
+
+        function deleteWorld() {
+            document.getElementById("world").innerHTML = "";
+            world = [];
+            tileDistances = [];
+        }
+
+        function initWorld() { //Randomly generates a map with a wall border
+            //TODO: Add tunnels to the border that teleport around like in Pac-Man
+            for(var y = 0; y < height; y++){
+                var row = [];
+                for(var x = 0; x < width; x++){
+                    if(y == 0 || y == (height - 1) || x == 0 || x == (width - 1)){ //Create world Borders
+                        row.push(1);
+                    }
+                    else{
+                        var rng = Math.random() * 100;
+                        if(rng < 75){          //Generates random walls, sushis, onigiris, and blank spaces with different chances
+                            row.push(0);
+                        }
+                        else if(rng < 95) {
+                            row.push(1);
+                        }
+                        else if(rng < 99) {
+                            row.push(2);
+                            numFood++;
+                        }
+                        else if(rng < 100) {
+                            row.push(3);
+                            numFood++;
+                        }
+                    }
+                }
+                world.push(row);
+            }
+            if(world[ninjaman.y][ninjaman.x] == 2 || world[ninjaman.y][ninjaman.x] == 3){
+                numFood--;
+                world[ninjaman.y][ninjaman.x] = 0; // Insures the player's origin is a blank space
+            }
+            world[ninjaman.y][ninjaman.x] = 0; 
+            if(ghostCount > 0){
+                for(var i = 0; i < ghostCount; i++){
+                    var ghostPos = ghosts[ghostNames[i]];
+                    world[ghostPos[0]][ghostPos[1]] = 0;
+                    if(world[ghostPos[0]][ghostPos[1]] == 2 || world[ghostPos[0]][ghostPos[1]] == 3){
+                        numFood--;
+                    }
+                }
+            }
+            console.log("World Initialized");
+        }
+
+        function drawWorld() {
+            output = "";
+
+            for(var row = 0; row < world.length; row++){
+                output += "<div class='row'>";
+                for(var x = 0; x < world[row].length; x++){
+                    output += "<div class='"+worldDict[world[row][x]]+"'></div>";
+                } 
+                output += "</div>";
+            }
+
+            if(document.getElementById("world") != null){
+                document.getElementById('world').innerHTML = output;
+            }
+
+            for(var i = 0; i < ghostCount; i++){
+                document.getElementById(ghostNames[i]).style.top = ghosts[ghostNames[i]][0] * 40 + "px";
+                document.getElementById(ghostNames[i]).style.left = ghosts[ghostNames[i]][1] * 40 + "px";
+            }
+        }
+
+        function updateTileDistances(){
+            var counter = 0;
+            var array_log = "";
+            tileDistances = [];
+
+            for(var i = 0; i < height; i++){ // Initializes an empty multi-dimensional array with dimensions equal to the worlds'
+                var row = [];
+                for (var j = 0; j < width; j++){
+                    row.push('undefined');
+                }
+                tileDistances.push(row);
+            }
+            tileDistances[ninjaman.y][ninjaman.x] = 0;
+
+
+            do{
+                counter = 0;
+                for(var y = 0; y < height; y++){
+                    for(var x = 0; x < width; x++){
+                        if(world[y][x] != 1){ //Checks if the tile isn't a wall
+                            if(tileDistances[y][x] != "undefined"){
+                                if(world[y-1][x] != 1 && tileDistances[y-1][x] == "undefined"){
+                                    tileDistances[y-1][x] = tileDistances[y][x] + 1;
+                                    counter++;
+                                }
+                                if(world[y][x+1] != 1 && (tileDistances[y][x+1] == "undefined")){
+                                    tileDistances[y][x+1] = tileDistances[y][x] + 1;
+                                    counter++;
+                                }
+                                if(world[y+1][x] != 1 && (tileDistances[y+1][x] == "undefined")){
+                                    tileDistances[y+1][x] = tileDistances[y][x] + 1;
+                                    counter++;
+                                }
+                                if(world[y][x-1] != 1 && (tileDistances[y][x-1] == "undefined")){
+                                    tileDistances[y][x-1] = tileDistances[y][x] + 1;
+                                    counter++;
+                                }
+                            }
+                        }
+                        else{
+                            tileDistances[y][x] = "w";
+                        }
+                    }
+                }
+            } while(counter > 0);
+        }
+
+        function cleanUpWorld() {
+            /*This function is to remove walls that block the player's accessibility to blanks spaces or foods
+                It uses a similar path tracing algorithm as the ghost's to find what spaces aren't available to the player
+
+                The algorithm iterates through the world array, finding the distance between tiles and the player origin
+                It labels the tiles as "T" and anything else it can't create a value for as 0
+                All of the 0s at the end of the algorithm have the tiles surrounding them removed
+                The Algorithm begins again to insure that the world is completely accessible to the player
+            */
+            updateTileDistances();
+
+            for(var y = 0; y < height; y++){
+                for(var x = 0; x < width; x++){
+                    if(tileDistances[y][x] == "undefined"){
+                        if(world[y][x] == 3 || world[y][x] == 2){
+                            world[y][x] = 0;
+                            numFood--;
+                        }
+                    }
+                }
+            }
+
+            //Double Check the Food count
+        }
+
+        function resetFoodCount() {
+            numFood = 0;
+            for(var y = 0; y < height; y++){
+                for(var x = 0; x < width; x++){
+                    if(world[y][x] == 2 || world[y][x] == 3){
+                        numFood++;
+                    }
+                }
+            }
+        }
+
+        async function updateWorld() {
+            updateTileDistances();
+
+            if(world[ninjaman.y][ninjaman.x] == 2){ //Increment the score based on sushi or onigiri
+                score++;
+            }
+            else if(world[ninjaman.y][ninjaman.x] == 3){
+                score += 5;
+            }
+            if(areGhostsScared){
+                for(var i = 0; i < ghostCount; i++){
+                    if(ninjaman.x == ghosts[ghostNames[i]][1] && ninjaman.y == ghosts[ghostNames[i]][0]){
+                        if(!ghostsHidden[i]){
+                            document.getElementById(ghostNames[i]).style.backgroundImage = "url('img/hidden.png')";
+                            ghostsHidden[i] = true;
+                            score += 25;
+                        }
+                    }
+                }
+            }
+            if(document.getElementById("score") != null){
+                document.getElementById("score").innerHTML = "Score: " + score; //Update score div
+            }
+            
+            if(score >= 0 && ghostCount == 0){
+                await initGhost("pinky");
+            }
+            if(score >= 25 && ghostCount == 1){
+                await initGhost('bluey');
+            }
+            if(score >= 75 && ghostCount == 2){
+                await initGhost("pumpky");
+            }
+            if(score >= 150 && ghostCount == 3){
+                await initGhost("red");
+            }
+
+            if(world[ninjaman.y][ninjaman.x] == 2){
+                numFood--;
+                world[ninjaman.y][ninjaman.x] = 0; //Remove the sushi or onigiri
+            }
+            if(world[ninjaman.y][ninjaman.x] == 3){
+                numFood--;
+                world[ninjaman.y][ninjaman.x] = 0;
+                await scaredGhosts();
+                numSteps = 0;
+            }
+
+            if(numSteps == 20){
+                areGhostsScared = false;
+                for(var i = 0; i < ghostCount; i++){
+                    document.getElementById(ghostNames[i]).style.backgroundImage = "url('img/" + ghostNames[i] + ".gif')";
+                    ghostsHidden[i] = false;
+                }
+                numSteps = 0;
+            }
+
+            if(!areGhostsScared){
+                for(var i = 0; i < ghostCount; i++){
+                    if(ninjaman.x == ghosts[ghostNames[i]][1] && ninjaman.y == ghosts[ghostNames[i]][0]){
+                        livesLeft--;
+                        if(livesLeft == 0){
+                            isGameOver = true;
+                            gameOver();
+                        }
+                    }
+                }
+            }
+
+            if(numSteps % 2 == 0){
+                if(!areGhostsScared){
+                    await moveGhosts();
+                } else {
+                    await moveScaredGhosts();
+                }
+            }
+
+
+            document.getElementById("lives").innerHTML = "Lives Left: " + livesLeft;
+            resetFoodCount();
+
+            if(numFood == 0){
+                deleteWorld();//Setup new world
+                initWorld();
+                cleanUpWorld();
+                drawWorld();
+                resetFoodCount();
+            }
+        }
+
+        function drawNinjaman() {
+            document.getElementById("ninjaman").style.top = ninjaman.y * 40 + "px";
+            document.getElementById("ninjaman").style.left = ninjaman.x * 40 + "px";
+        }
+
+        function moveNinjaman(key){
+            if(world[ninjaman.y][ninjaman.x - 1] != 1){
+                if(key == 37) { //LEFT
+                    ninjaman.x--;
+                }   
+            }
+            if(world[ninjaman.y - 1][ninjaman.x] != 1){
+                if(key == 38) { //UP
+                    ninjaman.y--;
+                }
+            }
+            if(world[ninjaman.y][ninjaman.x + 1] != 1){
+                if(key == 39) { //RIGHT
+                    ninjaman.x++;
+                }
+            }
+            if(world[ninjaman.y + 1][ninjaman.x] != 1){
+                if(key == 40) { //DOWN
+                    ninjaman.y++;
+                }
+            }
+
+            if(numSteps == 50){
+                numSteps = 0;
+            } else {
+                numSteps++;
+            }
+        }
+
+        function moveGhosts(){
+            updateTileDistances();
+            var allGhostPos = [];
+            for(var i = 0; i < ghostCount; i++){
+                allGhostPos.push(ghosts[ghostNames[i]]);
+            }
+
+            for(var i = 0; i < ghostCount; i++){
+                var ghostPos = ghosts[ghostNames[i]];
+                var newGhostPos = ghostPos;
+                if(tileDistances[ghostPos[0] - 1][ghostPos[1]] != 'w' && tileDistances[ghostPos[0] - 1][ghostPos[1]] != "undefined"){
+                    if(tileDistances[newGhostPos[0]][newGhostPos[1]] > tileDistances[ghostPos[0] - 1][ghostPos[1]] && !(arrayIncludesArray(allGhostPos, [ghostPos[0] - 1, ghostPos[1]]))){
+                        newGhostPos = [ghostPos[0] - 1, ghostPos[1]];
+                    }
+                }
+                if(tileDistances[ghostPos[0]][ghostPos[1] + 1] != 'w' && tileDistances[ghostPos[0]][ghostPos[1] + 1] != "undefined"){
+                    if(tileDistances[newGhostPos[0]][newGhostPos[1]] > tileDistances[ghostPos[0]][ghostPos[1] + 1]){
+                        newGhostPos = [ghostPos[0], ghostPos[1] + 1];
+                    }
+                }
+                if(tileDistances[ghostPos[0] + 1][ghostPos[1]] != 'w' && tileDistances[ghostPos[0] + 1][ghostPos[1]] != "undefined"){
+                    if(tileDistances[newGhostPos[0]][newGhostPos[1]] > tileDistances[ghostPos[0] + 1][ghostPos[1]] && !(arrayIncludesArray(allGhostPos, [ghostPos[0] + 1, ghostPos[1]]))){
+                        newGhostPos = [ghostPos[0] + 1, ghostPos[1]];
+                    }
+                }
+                if(tileDistances[ghostPos[0]][ghostPos[1] - 1] != 'w' && tileDistances[ghostPos[0]][ghostPos[1] - 1] != "undefined"){
+                    if(tileDistances[newGhostPos[0]][newGhostPos[1]] > tileDistances[ghostPos[0]][ghostPos[1] - 1] && !(arrayIncludesArray(allGhostPos, [ghostPos[0], ghostPos[1] - 1]))){
+                        newGhostPos = [ghostPos[0], ghostPos[1] - 1];
+                    }
+                }
+                allGhostPos[i] = newGhostPos;
+                ghosts[ghostNames[i]] = newGhostPos;
+            }
+        }
+
+        function gameOver(){
+            if(document.getElementById("score") != null){
+                document.getElementById("score").style.opacity = 0;
+            }
+            for(var i = 0; i < ghostCount; i++){
+                if(ninjaman.x == ghosts[ghostNames[i]][1] && ninjaman.y == ghosts[ghostNames[i]][0]){
+                    document.getElementById(ghostNames[i]).style.top = ninjaman.y * 40 + "px";
+                    document.getElementById(ghostNames[i]).style.left = ninjaman.x * 40 + "px";
+                    killerGhost = ghostNames[i];
+                } else {
+                    document.getElementById(ghostNames[i]).remove();
+                }
+            }
+            var gameOverTextHTML = "<div id='gameover-text'>GAME OVER<br>FINAL SCORE: " + score + "</div>";
+            document.body.innerHTML += "<div id='gameover'></div>";
+            document.getElementById("gameover").style.height = height * 40 + "px";
+            document.getElementById("gameover").style.width = width * 40+ "px";
+            document.body.innerHTML += gameOverTextHTML;
+            document.getElementById("gameover-text").style.top = height / 2 * 40 + "px";
+            document.getElementById("gameover-text").style.left = width / 2 * 40 - 100 + "px";
+
+            document.body.innerHTML += "<button type='button' id='start-over-button' onclick='initGame()'>START OVER</button>";
+            document.getElementById("start-over-button").style.marginTop = (height / 2 * 40) + 80 + "px";
+            document.getElementById("start-over-button").style.marginLeft = width / 2 * 40 - 40 + "px";
+
+            document.getElementById("gameover").appendChild(document.getElementById(killerGhost));
+        }
+
+        function initGame() {
+            console.log("Game initialized");
+            score = 0;
+            ghostCount = 0;
+            ghostsHidden.fill(false);
+            areGhostsScared = false;
+            numSteps = 0;
+            isGameOver = false;
+            world = [];
+            tileDistances = [];
+            ninjaman.x = 1;
+            ninjaman.y = 1;
+            livesLeft = 3;
+
+
+            if(document.getElementById("gameover") != null){
+                document.getElementById("gameover").remove();
+            }
+            if(document.getElementById("gameover-text") != null){
+                document.getElementById("gameover-text").remove();
+            }
+            if(document.getElementById("start-over-button") != null){
+                document.getElementById("start-over-button").remove();
+            }
+            if(document.getElementById(killerGhost) != null){
+                document.getElementById(killerGhost).remove();
+            }
+            killerGhost = "";
+            
+            document.getElementById("score").style.opacity = 1;
+            document.getElementById("score").innerHTML = "Score: " + score;
+            document.getElementById("lives").style.opacity = 1;
+            document.getElementById("lives").innerHTML = "Lives Left: " + livesLeft;
+            console.log("Element Removed");
+
+            initWorld();
+            cleanUpWorld();
+            drawWorld();
+            drawNinjaman();
+            document.getElementById("score").style.left = (width - 4) * 40 + "px";
+            document.getElementById("score").style.top = (height - 1) * 40 + "px";
+            document.getElementById("lives").style.left = 0 + "px";
+            document.getElementById("lives").style.top = (height - 1) * 40 + "px";
+        }
+
+        initGame();
+
+        document.onkeydown = function(e) {
+            if(!isGameOver && (e.keyCode == 37 || e. keyCode == 38 || e.keyCode == 39 || e.keyCode == 40)){
+                moveNinjaman(e.keyCode);
+                drawWorld();
+                drawNinjaman();
+                updateWorld();
+            }
+        }
+    </script>
+</html>
